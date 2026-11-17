@@ -1,0 +1,2 @@
+# Service log files written by logback (docker-compose mounts ./logs)
+logs/

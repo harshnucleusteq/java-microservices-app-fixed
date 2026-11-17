@@ -6,8 +6,15 @@ services:
       - "8081:8081"
     environment:
       - SERVER_PORT=8081
+      - LOG_DIR=/app/out
     networks:
       - app-network
+    volumes:
+      # The service's log file, logs/inventory-service.log on the host (see logback-spring.xml).
+      # Mounted at /app/out, a path without "log" in it, on purpose: the observability platform's
+      # collector reads files under any mount whose path names logs, and it already reads these
+      # lines from stdout, so it would take every line twice.
+      - ./logs:/app/out
 
   order-service:
     build:
@@ -18,6 +25,7 @@ services:
       - SERVER_PORT=8082
       # Checkout reserves and releases stock through inventory-service's API.
       - INVENTORY_BASE_URL=http://inventory-service:8081
+      - LOG_DIR=/app/out
     depends_on:
       - inventory-service
     networks:
@@ -26,6 +34,8 @@ services:
       # Lets /actuator/unified-metrics read this container's CPU and memory from the
       # Docker engine. Note: this gives the container full access to the Docker engine.
       - /var/run/docker.sock:/var/run/docker.sock
+      # logs/order-service.log on the host; /app/out for the reason given under inventory-service.
+      - ./logs:/app/out
 
 networks:
   app-network:

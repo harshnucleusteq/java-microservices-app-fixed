@@ -15,12 +15,43 @@
 
   Note: file / line / method are computed from a stack trace for each log event, which
   costs some CPU. Fine for these services; avoid heavy logging on hot paths.
+
+  Every log line also goes to a file, ${LOG_DIR}/order-service.log (default ./logs), in the
+  same layouts without colours (order-trace and order-audit keep their plain layout there
+  too). It rolls at 10 MB or daily into order-service.<date>.<n>.log.gz, keeping 7 days and
+  at most 200 MB.
 -->
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
+    <property name="LOG_FOLDER" value="${LOG_DIR:-logs}"/>
+
     <property name="LOCATED_CONSOLE_LOG_PATTERN"
               value="%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd'T'HH:mm:ss.SSSXXX}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr(%applicationName[%15.15t]){faint} %clr(${LOG_CORRELATION_PATTERN:-}){faint}%clr(%-40.40logger{39}){cyan} %clr(:){faint} %clr(\(%file:%line\)){yellow} %method - %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"/>
+
+    <property name="LOCATED_FILE_LOG_PATTERN"
+              value="%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd'T'HH:mm:ss.SSSXXX}} ${LOG_LEVEL_PATTERN:-%5p} ${PID:- } --- %applicationName[%15.15t] ${LOG_CORRELATION_PATTERN:-}%-40.40logger{39} : \(%file:%line\) %method - %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"/>
+
+    <!-- One file for the whole service. Logback lets only one appender write a file, so the root
+         logger and the business streams share this appender; StreamLayout gives order-trace and
+         order-audit the plain layout and every other line the located one, as on the console. -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FOLDER}/order-service.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_FOLDER}/order-service.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="com.example.order.logging.StreamLayout">
+                <locatedPattern>${LOCATED_FILE_LOG_PATTERN}</locatedPattern>
+                <plainPattern>${FILE_LOG_PATTERN}</plainPattern>
+                <plainLoggers>order-trace,order-audit</plainLoggers>
+            </layout>
+            <charset>${FILE_LOG_CHARSET}</charset>
+        </encoder>
+    </appender>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -38,13 +69,16 @@
 
     <logger name="order-trace" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE_PLAIN"/>
+        <appender-ref ref="FILE"/>
     </logger>
 
     <logger name="order-audit" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE_PLAIN"/>
+        <appender-ref ref="FILE"/>
     </logger>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
     </root>
 </configuration>

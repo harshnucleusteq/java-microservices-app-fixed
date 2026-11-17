@@ -11,12 +11,21 @@
 
   The supplier feed's reject report is not a log: SupplierFeedImporter prints it to
   stdout as plain text, in the suppliers' own format.
+
+  Every log line also goes to a file, ${LOG_DIR}/inventory-service.log (default ./logs),
+  in the same layout without colours. It rolls at 10 MB or daily into
+  inventory-service.<date>.<n>.log.gz, keeping 7 days and at most 200 MB.
 -->
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
+    <property name="LOG_FOLDER" value="${LOG_DIR:-logs}"/>
+
     <property name="LOCATED_CONSOLE_LOG_PATTERN"
               value="%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd'T'HH:mm:ss.SSSXXX}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr(%applicationName[%15.15t]){faint} %clr(${LOG_CORRELATION_PATTERN:-}){faint}%clr(%-40.40logger{39}){cyan} %clr(:){faint} %clr(\(%file:%line\)){yellow} %method - %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"/>
+
+    <property name="LOCATED_FILE_LOG_PATTERN"
+              value="%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd'T'HH:mm:ss.SSSXXX}} ${LOG_LEVEL_PATTERN:-%5p} ${PID:- } --- %applicationName[%15.15t] ${LOG_CORRELATION_PATTERN:-}%-40.40logger{39} : \(%file:%line\) %method - %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -25,7 +34,22 @@
         </encoder>
     </appender>
 
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FOLDER}/inventory-service.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_FOLDER}/inventory-service.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOCATED_FILE_LOG_PATTERN}</pattern>
+            <charset>${FILE_LOG_CHARSET}</charset>
+        </encoder>
+    </appender>
+
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
     </root>
 </configuration>
